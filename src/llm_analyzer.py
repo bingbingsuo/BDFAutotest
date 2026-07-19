@@ -342,6 +342,8 @@ class LLMAnalyzer:
             return self._call_deepseek_chat(prompt)
         elif provider == "groq":
             return self._call_groq_chat(prompt)
+        elif provider == "minimax":
+            return self._call_minimax_chat(prompt)
         else:
             raise RuntimeError(f"Remote provider {self.remote_provider!r} is not supported yet.")
 
@@ -424,6 +426,51 @@ class LLMAnalyzer:
             prompt=prompt,
             log_provider="Groq",
         )
+
+    def _call_minimax_chat(self, prompt: str) -> str:
+        """
+        Call MiniMax chat completion API (Anthropic-compatible endpoint).
+
+        MiniMax uses an Anthropic-compatible /v1/messages endpoint.
+        API key is read from the configured env var (default: MINIMAX_CN_API_KEY).
+        """
+        api_key = os.getenv(self.remote_api_key_env)
+        if not api_key:
+            raise RuntimeError(
+                f"MiniMax LLM API key not found in environment variable {self.remote_api_key_env}. "
+                "Set it before running the orchestrator."
+            )
+
+        # MiniMax Anthropic-compatible endpoint
+        base_url = os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/anthropic")
+        url = f"{base_url.rstrip('/')}/v1/messages"
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        }
+
+        payload = {
+            "model": self.remote_model,
+            "messages": [
+                {"role": "user", "content": prompt},
+            ],
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+        }
+
+        self.logger.debug("Calling MiniMax LLM at %s with model=%s", url, self.remote_model)
+        response = requests.post(url, headers=headers, json=payload, timeout=120)
+        response.raise_for_status()
+        data = response.json()
+
+        # Anthropic returns {"content": [...], "id": "...", ...}
+        content = data.get("content") or []
+        if isinstance(content, list) and content:
+            return content[0].get("text", "") or ""
+        return ""
 
     def _simple_build_analysis(self, build_result: BuildResult) -> LLMAnalysis:
         """Extract basic information from build failure without LLM"""
