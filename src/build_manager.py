@@ -3,6 +3,7 @@ Build manager: orchestrates running the setup command with proper options
 """
 
 import logging
+import os
 import shlex
 import subprocess
 import time
@@ -118,9 +119,12 @@ class BuildManager:
 
         command = self._assemble_command()
         start_time = time.monotonic()
+        env = os.environ.copy()
+        env.update(self.build_cfg.get("environment", {}))
         process = subprocess.run(
             command,
             cwd=self.source_dir,
+            env=env,
             capture_output=True,
             text=True,
             check=False,
