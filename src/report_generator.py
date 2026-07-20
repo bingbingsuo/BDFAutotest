@@ -128,6 +128,7 @@ HTML_TEMPLATE = """
         <tr>
           <th>Test</th>
           <th>Status</th>
+          <th>Solvent</th>
           <th>Exit Code</th>
           <th>Matched</th>
           <th>Files</th>
@@ -140,6 +141,14 @@ HTML_TEMPLATE = """
           <td>{{ test.test_case.name }}</td>
           <td class="{{ 'success' if test.success else 'failure' }}">
             {{ 'Pass' if test.success else 'Fail' }}
+          </td>
+          <td>
+            {% if test.test_case.solvent_info and test.test_case.solvent_info.enabled %}
+              {{ test.test_case.solvent_info.model.value | upper if test.test_case.solvent_info.model.value is defined else test.test_case.solvent_info.model | upper }}
+              ({{ test.test_case.solvent_info.solvent_name }})
+            {% else %}
+              —
+            {% endif %}
           </td>
           <td>{{ test.exit_code }}</td>
           <td>
@@ -268,7 +277,7 @@ class ReportGenerator:
 
     def _test_payload(self, result: TestResult) -> Dict[str, Any]:
         comparison = result.comparison
-        return {
+        payload = {
             "name": result.test_case.name,
             "success": result.success,
             "command": result.command,
@@ -278,4 +287,17 @@ class ReportGenerator:
                 "differences": comparison.differences if comparison else None,
             },
         }
+        # Include solvent info if present
+        si = result.test_case.solvent_info
+        if si is not None:
+            # Support both SolventInfo object and dict forms
+            if hasattr(si, "enabled"):
+                payload["solvent"] = {
+                    "enabled": si.enabled,
+                    "model": si.model.value if hasattr(si.model, "value") else str(si.model),
+                    "solvent_name": si.solvent_name,
+                }
+            elif isinstance(si, dict):
+                payload["solvent"] = si
+        return payload
 

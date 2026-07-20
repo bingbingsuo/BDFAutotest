@@ -17,6 +17,23 @@ from .models import TestCase, TestResult, CommandResult, ComparisonResult
 from .result_comparator import ResultComparator
 from .utils import resolve_source_path, wildcard_to_name
 
+# Lazy import solvent_parser to avoid hard dependency
+_has_solvent = None
+_extract_solvent = None
+
+
+def _solvent_init():
+    global _has_solvent, _extract_solvent
+    if _has_solvent is None:
+        try:
+            from .solvent_parser import has_solvent as hs, extract_solvent_from_input as esi
+            _has_solvent = hs
+            _extract_solvent = esi
+        except ImportError:
+            _has_solvent = lambda _: False
+            _extract_solvent = lambda _: None
+_solvent_init()
+
 
 class TestRunner:
     """Execute tests defined by input/reference patterns"""
@@ -135,6 +152,15 @@ class TestRunner:
             # Reference file is tests/check/testXXX.check
             reference_file = reference_path / f"{name}.check"
 
+            # Extract solvent info from the input file (only when solvent keywords are present)
+            solvent_info = None
+            try:
+                input_text = input_file.read_text(encoding="utf-8", errors="replace")
+                if _has_solvent(input_text):
+                    solvent_info = _extract_solvent(input_text)
+            except Exception:
+                pass  # Non-fatal
+
             command = self._build_command(check_input.name)
             cases.append(
                 TestCase(
@@ -143,6 +169,7 @@ class TestRunner:
                     log_file=log_file,
                     reference_file=reference_file,
                     command=command,
+                    solvent_info=solvent_info,
                 )
             )
 

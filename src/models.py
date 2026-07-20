@@ -4,7 +4,7 @@ Dataclasses and shared models for the BDF Auto Test Framework
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 
 
 @dataclass
@@ -37,6 +37,7 @@ class TestCase:
     log_file: Path
     reference_file: Path
     command: List[str]
+    solvent_info: Optional[Union[Any, Dict[str, Any]]] = None  # lazy-populated by test_runner
 
 
 @dataclass

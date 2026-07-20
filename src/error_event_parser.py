@@ -139,13 +139,24 @@ class ErrorEventParser:
         git_cfg = config.get("git", {})
         default_source_dir = git_cfg.get("local_path", "./package_source")
         source_dir = build_cfg.get("source_dir", default_source_dir)
+
+        # Extract solvent model from test_case if available
+        solvent_model = None
+        si = result.test_case.solvent_info if result.test_case else None
+        if si is not None:
+            if hasattr(si, "model") and hasattr(si.model, "value"):
+                solvent_model = si.model.value
+            elif hasattr(si, "model"):
+                solvent_model = str(si.model)
+
         context = ErrorContext(
             command=result.command,
             working_directory=result.cwd,
             test_name=result.test_case.name if result.test_case else None,
             environment={
                 "BDFHOME": str(source_dir),
-            }
+            },
+            solvent_model=solvent_model,
         )
         
         event = ErrorEvent(
@@ -193,7 +204,15 @@ class ErrorEventParser:
             command=result.command,
             test_name=result.test_case.name if result.test_case else None,
         )
-        
+
+        # Extract solvent model from test_case if available
+        si = result.test_case.solvent_info if result.test_case else None
+        if si is not None:
+            if hasattr(si, "model") and hasattr(si.model, "value"):
+                context.solvent_model = si.model.value
+            elif hasattr(si, "model"):
+                context.solvent_model = str(si.model)
+
         event = ErrorEvent(
             event_id=create_event_id("compare"),
             timestamp=get_timestamp(),

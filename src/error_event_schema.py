@@ -71,6 +71,7 @@ class ErrorContext:
     test_name: Optional[str] = None
     git_commit: Optional[str] = None
     git_branch: Optional[str] = None
+    solvent_model: Optional[str] = None  # e.g. "iefpcm", "cpcm", "smd"
 
 
 @dataclass
