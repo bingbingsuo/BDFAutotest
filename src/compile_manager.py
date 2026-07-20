@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from .models import BuildResult
-from .utils import find_python_interpreter, fix_python_shebangs
+from .utils import find_python_interpreter, fix_python_shebangs, resolve_source_dir
 
 
 class CompileManager:
@@ -21,12 +21,7 @@ class CompileManager:
     def __init__(self, config: Dict[str, Any], logger: Optional[logging.Logger] = None):
         compile_cfg = config.get("compile", {})
         build_cfg = config.get("build", {})
-        # Use git.local_path as default if source_dir is not explicitly set
-        git_cfg = config.get("git", {})
-        default_source_dir = git_cfg.get("local_path", "./package_source")
-        default_working_dir = Path(build_cfg.get("source_dir", default_source_dir)) / build_cfg.get(
-            "build_dir", "build"
-        )
+        default_working_dir = resolve_source_dir(config) / build_cfg.get("build_dir", "build")
         self.working_dir = Path(compile_cfg.get("working_dir", default_working_dir)).resolve()
         self.command = compile_cfg.get("command", "make")
         

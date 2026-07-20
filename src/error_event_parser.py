@@ -16,6 +16,7 @@ from .error_event_schema import (
     create_event_id, get_timestamp
 )
 from .models import BuildResult, TestResult
+from .utils import resolve_source_dir
 
 
 class ErrorEventParser:
@@ -134,11 +135,8 @@ class ErrorEventParser:
         
         # Build context
         tests_cfg = config.get("tests", {})
-        # Use git.local_path as default if source_dir is not explicitly set
         build_cfg = config.get("build", {})
-        git_cfg = config.get("git", {})
-        default_source_dir = git_cfg.get("local_path", "./package_source")
-        source_dir = build_cfg.get("source_dir", default_source_dir)
+        source_dir = str(resolve_source_dir(config))
 
         # Extract solvent model from test_case if available
         solvent_model = None

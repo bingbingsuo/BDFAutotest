@@ -246,7 +246,9 @@ class ReportGenerator:
             artifacts["json"] = path
 
         if "html" in self.formats:
-            env = Environment(loader=BaseLoader())
+            # autoescape=True so that build.stderr / comparison differences /
+            # LLM output are rendered as text rather than executed as HTML.
+            env = Environment(loader=BaseLoader(), autoescape=True)
             template = env.from_string(HTML_TEMPLATE)
             html = template.render(
                 timestamp=timestamp,

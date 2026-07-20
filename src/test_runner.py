@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional
 
 from .models import TestCase, TestResult, CommandResult, ComparisonResult
 from .result_comparator import ResultComparator
-from .utils import resolve_source_path, wildcard_to_name
+from .utils import resolve_source_path, wildcard_to_name, resolve_source_dir
 
 # Lazy import solvent_parser to avoid hard dependency
 _has_solvent = None
@@ -42,10 +42,7 @@ class TestRunner:
         self.config = config
         self.build_cfg = config.get("build", {})
         self.tests_cfg = config.get("tests", {})
-        # Use git.local_path as default if source_dir is not explicitly set
-        git_cfg = config.get("git", {})
-        default_source_dir = git_cfg.get("local_path", "./package_source")
-        self.source_dir = Path(self.build_cfg.get("source_dir", default_source_dir)).resolve()
+        self.source_dir = resolve_source_dir(config)
         # build/check directory inside the build tree for all test artefacts
         self.build_dir = self.source_dir / self.build_cfg.get("build_dir", "build")
         # Installed package root for BDFHOME
@@ -306,29 +303,7 @@ class TestRunner:
             # Log exit code
             if test_result.exit_code != 0:
                 self.logger.error("  Exit code: %s", test_result.exit_code)
-            
-            # Log key error messages from stderr
-            if test_result.stderr:
-                stderr_lines = test_result.stderr.strip().splitlines()
-                # Look for critical error indicators
-                error_keywords = ["SIGSEGV", "Segmentation fault", "Program received signal", 
-                                "failed", "error", "Error", "ERROR", "FATAL"]
-                relevant_lines = []
-                for line in stderr_lines:
-                    if any(keyword in line for keyword in error_keywords):
-                        relevant_lines.append(line)
-                        if len(relevant_lines) >= 10:  # Limit to first 10 relevant lines
-                            break
-                if relevant_lines:
-                    self.logger.error("  Error details from stderr:")
-                    for line in relevant_lines:
-                        self.logger.error("    %s", line)
-                elif len(stderr_lines) > 0:
-                    # If no keywords found, show first few lines
-                    self.logger.error("  Stderr (first 5 lines):")
-                    for line in stderr_lines[:5]:
-                        self.logger.error("    %s", line)
-            
+
             # Log comparison differences if comparison failed
             if test_result.comparison and not test_result.comparison.matched:
                 self.logger.error("  Comparison failed:")

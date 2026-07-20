@@ -62,33 +62,6 @@ class ResultComparator:
             # Optionally scale ELECOUP relative tolerance as well
             self.elecoup_relative_tol *= scale
 
-    def compare_text_files(self, file_a: Path, file_b: Path) -> ComparisonResult:
-        """
-        Compare two text files, emulating `diff` semantics with exact text.
-        This is still available for generic text comparison.
-        """
-        if not file_a.exists():
-            return ComparisonResult(matched=False, differences=f"File not found: {file_a}")
-        if not file_b.exists():
-            return ComparisonResult(matched=False, differences=f"File not found: {file_b}")
-
-        text_a = file_a.read_text().strip()
-        text_b = file_b.read_text().strip()
-
-        if text_a == text_b:
-            return ComparisonResult(matched=True)
-
-        diff = "\n".join(
-            difflib.unified_diff(
-                text_a.splitlines(),
-                text_b.splitlines(),
-                fromfile=str(file_a),
-                tofile=str(file_b),
-                lineterm="",
-            )
-        )
-        return ComparisonResult(matched=False, differences=diff)
-
     def compare_check_files(self, generated: Path, reference: Path) -> ComparisonResult:
         """
         Compare two CHECKDATA files line-by-line.
@@ -269,49 +242,4 @@ class ResultComparator:
         if not g_floats or not r_floats:
             return [], [], False
         return g_floats, r_floats, True
-
-    def compare_numeric(self, output: str, reference_file: Path) -> ComparisonResult:
-        """
-        Attempt to compare whitespace-separated floats with tolerance.
-        """
-        if not reference_file.exists():
-            return ComparisonResult(
-                matched=False,
-                differences=f"Reference file not found: {reference_file}",
-            )
-
-        reference_values = self._parse_floats(reference_file.read_text())
-        output_values = self._parse_floats(output)
-
-        if len(reference_values) != len(output_values):
-            return ComparisonResult(
-                matched=False,
-                differences="Value counts differ between output and reference",
-                details={"reference_count": len(reference_values), "output_count": len(output_values)},
-            )
-
-        mismatches = []
-        for idx, (ref, out) in enumerate(zip(reference_values, output_values)):
-            if abs(ref - out) > self.tolerance:
-                mismatches.append((idx, ref, out))
-
-        if not mismatches:
-            return ComparisonResult(matched=True)
-
-        lines = [f"Index {idx}: ref={ref} out={out}" for idx, ref, out in mismatches[:20]]
-        return ComparisonResult(
-            matched=False,
-            differences="Numeric values differ beyond tolerance\n" + "\n".join(lines),
-            details={"mismatch_count": len(mismatches)},
-        )
-
-    @staticmethod
-    def _parse_floats(text: str):
-        values = []
-        for token in text.split():
-            try:
-                values.append(float(token))
-            except ValueError:
-                continue
-        return values
 

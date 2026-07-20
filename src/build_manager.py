@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 import shutil
 
 from .models import BuildResult
-from .utils import find_python_interpreter
+from .utils import find_python_interpreter, resolve_source_dir
 
 
 class BuildManager:
@@ -21,10 +21,7 @@ class BuildManager:
     def __init__(self, config: Dict[str, Any], logger: Optional[logging.Logger] = None):
         self.config = config
         self.build_cfg = config.get("build", {})
-        # Use git.local_path as default if source_dir is not explicitly set
-        git_cfg = config.get("git", {})
-        default_source_dir = git_cfg.get("local_path", "./package_source")
-        self.source_dir = Path(self.build_cfg.get("source_dir", default_source_dir)).resolve()
+        self.source_dir = resolve_source_dir(config)
         self.build_dir = self.source_dir / self.build_cfg.get("build_dir", "build")
         self.build_command = self.build_cfg.get("build_command", "./setup")
         self.logger = logger or logging.getLogger("bdf_autotest.build")

@@ -5,12 +5,5 @@ gitpython>=3.1.0
 # Report generation
 jinja2>=2.10.3
 
-# CLI interface
-click>=7.0.0
-
-# Utilities
-python-dotenv>=0.21.1  # For environment variable management
-
 # HTTP client
 requests>=2.31.0
-

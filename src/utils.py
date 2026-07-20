@@ -6,7 +6,23 @@ import logging
 import re
 import shutil
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, Any
+
+
+def resolve_source_dir(config: Dict[str, Any]) -> Path:
+    """
+    Return the resolved package source directory from config.
+
+    ConfigLoader already normalizes ``build.source_dir`` to ``git.local_path``
+    (falling back to ``./package_source``); this helper exists so that modules
+    constructed outside ConfigLoader (or with a hand-built config) all apply
+    the same precedence:
+        build.source_dir  >  git.local_path  >  ./package_source
+    """
+    build_cfg = config.get("build", {}) or {}
+    git_cfg = config.get("git", {}) or {}
+    default = git_cfg.get("local_path", "./package_source")
+    return Path(build_cfg.get("source_dir", default)).resolve()
 
 
 def resolve_source_path(source_dir: Path, relative_path: str) -> Path:

@@ -1,8 +1,14 @@
 """Tests for solvent_parser module"""
 import sys
-sys.path.insert(0, "/Users/bsuo/bdf/BDFAutoTest/src")
+from pathlib import Path
 
-from solvent_parser import (
+# Allow running `pytest` from anywhere by adding src/ to sys.path.
+# Prefer the project layout (tests/ sibling to src/) over a hardcoded path.
+_SRC_DIR = Path(__file__).resolve().parent.parent / "src"
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
+
+from solvent_parser import (  # noqa: E402
     parse_scf_block, parse_mcscf_block, extract_solvent_from_input,
     has_solvent, format_solvent_report, SolventModel, SolventInfo
 )

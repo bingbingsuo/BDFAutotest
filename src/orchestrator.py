@@ -20,6 +20,7 @@ try:
     from .report_generator import ReportGenerator
     from .models import BuildResult
     from .error_event_parser import ErrorEventParser
+    from .utils import resolve_source_dir
 except ImportError:  # pragma: no cover
     from config_loader import ConfigLoader  # type: ignore
     from logger import setup_logger  # type: ignore
@@ -32,6 +33,7 @@ except ImportError:  # pragma: no cover
     from report_generator import ReportGenerator  # type: ignore
     from models import BuildResult  # type: ignore
     from error_event_parser import ErrorEventParser  # type: ignore
+    from utils import resolve_source_dir  # type: ignore
 
 
 def run_workflow(
@@ -288,10 +290,7 @@ def run_input_command(
     
     build_cfg = config.get("build", {})
     tests_cfg = config.get("tests", {})
-    # Use git.local_path as default if source_dir is not explicitly set
-    git_cfg = config.get("git", {})
-    default_source_dir = git_cfg.get("local_path", "./package_source")
-    source_dir = Path(build_cfg.get("source_dir", default_source_dir)).resolve()
+    source_dir = resolve_source_dir(config)
     build_dir = source_dir / build_cfg.get("build_dir", "build")
     bdf_home = build_dir / "bdf-pkg-full"
     
