@@ -54,6 +54,20 @@ def run_workflow(
         tests_cfg["profile"] = profile
     logger = setup_logger(config=config)
 
+    # Determine workflow mode from config (can be overridden by CLI flags)
+    workflow_cfg = config.get("workflow", {})
+    workflow_mode = workflow_cfg.get("mode", "full")
+    
+    # Map workflow mode to skip flags (CLI flags take precedence)
+    if workflow_mode == "test-only":
+        # Skip both git and build - only run tests
+        skip_git = True
+        skip_build = True
+    elif workflow_mode == "build-test":
+        # Skip git only - run build and tests
+        skip_git = True
+    # For "full" mode, use CLI-provided skip_git/skip_build values as-is
+    
     # Capture build configuration (compiler and math library settings) for reporting
     build_config = config.get("build", {})
     version_info = None
