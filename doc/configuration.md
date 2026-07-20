@@ -83,6 +83,50 @@ build:
   - `always_use`: Flags always passed to the setup script (e.g. `--int64`, `--omp`).
   - `additional_args`: Extra flags appended to the setup command for experiments.
 
+- **HDF5 (optional, default off)**
+
+  BDF can optionally use HDF5 for checkpoint/restart. When enabled, the framework appends `--hdf5 --hdf5root=<home>` to the setup command. Before invoking setup it performs a light pre-build check so obvious environment mistakes fail fast instead of mid-way through a long CMake run.
+
+  ```yaml
+  build:
+    hdf5:
+      enabled: false              # set to true to enable HDF5
+      hdf5home: null              # HDF5 install root, or null to read $HDF5HOME
+      allow_downgrade: true       # on check failure: true=build without HDF5, false=let setup fail
+  ```
+
+  - `enabled`: Default `false`. The whole `hdf5:` section may be omitted; that is equivalent to `enabled: false`.
+  - `hdf5home`: HDF5 install root (the directory that contains `include/` and `lib/`). If null/empty, the framework reads the `HDF5HOME` environment variable. The literal placeholders `$HDF5HOME` and `${HDF5HOME}` in the config value are expanded against the process environment, so `hdf5home: "${HDF5HOME}"` is equivalent to leaving it unset. Common values: `/usr`, `/opt/homebrew/opt/hdf5`, `/usr/local/hdf5`.
+  - `allow_downgrade`: Controls behavior when HDF5 is enabled but the pre-build check fails (missing header or library, or HDF5HOME unset):
+    - `true` (default): logs a warning and builds **without** `--hdf5`. The resulting BDF binary will not have HDF5 support.
+    - `false`: logs an error and still passes `--hdf5` to setup, which will then fail naturally (use this if you want missing HDF5 to be a hard error).
+
+  **Pre-build check.** When `enabled: true`, the framework looks for:
+  1. `<hdf5home>/include/hdf5.h`
+  2. `libhdf5.*` under `<hdf5home>/lib` (or `<hdf5home>/lib64` on systems that use it)
+
+  The check uses only filesystem presence — it does not run `h5cc` or `pkg-config`. CMake re-validates the library during configure, so a passing check here does not guarantee a successful build; it only catches the common case of a wrong or unset HDF5 home before the expensive build starts.
+
+  **Example.** Enable HDF5 against a Homebrew install on macOS:
+
+  ```yaml
+  build:
+    hdf5:
+      enabled: true
+      hdf5home: "/opt/homebrew/opt/hdf5"
+  ```
+
+  Or rely on the environment variable (recommended for shared configs across machines):
+
+  ```yaml
+  build:
+    hdf5:
+      enabled: true
+      # hdf5home left null; export HDF5HOME=/opt/homebrew/opt/hdf5 in your shell
+  ```
+
+  The resolved status (`ok` / `downgraded` / `config_error` / `disabled`), the home directory, and the detected version are logged at the start of the build step and recorded in `BuildResult.metadata.hdf5`, which flows into the JSON/HTML reports.
+
 ---
 
 ### 3. `compile` – How to Run `make`

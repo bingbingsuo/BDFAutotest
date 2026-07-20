@@ -42,7 +42,20 @@ build:
     mathlib_flags: "-L/path/to/lapack/lib -llapack -lblas -lcblas -llapacke"       # Value for --mathlib-flags (fill in as needed)
     blasdir: "/path/to/blas"             # Value for --blasdir (fill in as needed)
     lapackdir: "/path/to/lapack"           # Value for --lapackdir (fill in as needed)
-  
+
+  # HDF5 checkpoint/restart support (optional, default off).
+  # When enabled, the framework passes --hdf5 --hdf5root=<home> to setup.
+  # Pre-build check looks for <home>/include/hdf5.h and libhdf5.* under
+  # <home>/lib (or <home>/lib64). On failure it either downgrades (builds
+  # without --hdf5) or, with allow_downgrade: false, lets setup fail.
+  hdf5:
+    enabled: false                # Set to true to enable HDF5 support
+    hdf5home: null                # HDF5 install root; null -> read $HDF5HOME env var.
+                                  # Supports $HDF5HOME / ${HDF5HOME} placeholders.
+                                  # Common values: "/usr", "/opt/homebrew/opt/hdf5", "/usr/local/hdf5"
+    allow_downgrade: true         # true: build without HDF5 when the check fails.
+                                  # false: surface the failure (setup will likely error out).
+
   # Build mode
   build_mode: "release"  # Options: "release", "debug"
   

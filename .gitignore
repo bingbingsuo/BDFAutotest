@@ -25,6 +25,7 @@ bdf-pkg-full
 # IDE
 .vscode/
 .idea/
+.zcode/
 *.swp
 *.swo
 *~

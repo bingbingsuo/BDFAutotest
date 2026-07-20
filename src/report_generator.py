@@ -99,6 +99,11 @@ HTML_TEMPLATE = """
       </ul>
       {% endif %}
       {% endif %}
+      {% if build_config.hdf5 and build_config.hdf5.enabled %}
+      <li>HDF5: enabled (root: {{ build_config.hdf5.hdf5home or '$HDF5HOME' }})</li>
+      {% else %}
+      <li>HDF5: disabled</li>
+      {% endif %}
       {% if build_version %}
       <li>Build VERSION: {{ build_version }}</li>
       {% endif %}

@@ -164,6 +164,48 @@ class ConfigLoader:
         if not isinstance(additional_args, list):
             errors.append("'build.additional_args' must be a list.")
 
+        errors.extend(self._validate_hdf5(build_cfg))
+
+        return errors
+
+    def _validate_hdf5(self, build_cfg: Dict[str, Any]) -> List[str]:
+        """
+        Validate the optional build.hdf5 section.
+
+        Shape:
+            build:
+              hdf5:
+                enabled: false          # bool, default false
+                hdf5home: null          # optional non-empty string
+                allow_downgrade: true   # bool, default true
+
+        Existence of the HDF5 home / library is checked at build time by
+        resolve_hdf5(); the loader only checks types and shape here.
+        """
+        errors: List[str] = []
+        hdf5_cfg = build_cfg.get("hdf5")
+        if hdf5_cfg is None:
+            return errors  # section optional
+        if not isinstance(hdf5_cfg, dict):
+            errors.append("'build.hdf5' must be a mapping.")
+            return errors
+
+        enabled = hdf5_cfg.get("enabled", False)
+        # Note: in Python bool is a subclass of int, so isinstance(True, int)
+        # is True; the check order below keeps them distinct.
+        if not isinstance(enabled, bool):
+            errors.append("'build.hdf5.enabled' must be a boolean.")
+
+        hdf5home = hdf5_cfg.get("hdf5home")
+        if hdf5home is not None:
+            if not isinstance(hdf5home, str) or not hdf5home.strip():
+                errors.append("'build.hdf5.hdf5home' must be a non-empty string when set.")
+            # Allow $HDF5HOME / ${HDF5HOME} placeholders; resolved at build time.
+
+        allow_downgrade = hdf5_cfg.get("allow_downgrade", True)
+        if not isinstance(allow_downgrade, bool):
+            errors.append("'build.hdf5.allow_downgrade' must be a boolean.")
+
         return errors
 
     def _validate_compile(self) -> List[str]:
