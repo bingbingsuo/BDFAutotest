@@ -55,6 +55,9 @@ build:
                                   # Common values: "/usr", "/opt/homebrew/opt/hdf5", "/usr/local/hdf5"
     allow_downgrade: true         # true: build without HDF5 when the check fails.
                                   # false: surface the failure (setup will likely error out).
+  # When hdf5.enabled is true, test runs and run-input automatically set
+  # BDF_H5_CHKFIL_PRIMARY=1 (use .bdfh5 as the primary checkpoint file).
+  # Override via tests.env if you need a different value.
 
   # Build mode
   build_mode: "release"  # Options: "release", "debug"

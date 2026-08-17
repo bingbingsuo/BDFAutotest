@@ -95,11 +95,12 @@ class TestRunner:
         # bdfh5_manifest.py) import h5py at runtime. Surface a missing h5py
         # before tests start instead of letting every checkpoint-touching test
         # fail with a cryptic ModuleNotFoundError.
+        from .build_manager import resolve_hdf5
+        self.hdf5 = resolve_hdf5(self.config)
         self._warn_if_h5py_missing()
 
     def _warn_if_h5py_missing(self) -> None:
-        from .build_manager import resolve_hdf5
-        if not resolve_hdf5(self.config).enabled:
+        if not self.hdf5.enabled:
             return
         try:
             import h5py  # noqa: F401
@@ -110,6 +111,29 @@ class TestRunner:
                 "checkpoints will fail with ModuleNotFoundError. "
                 "Install it with: pip install h5py"
             )
+
+    def _build_test_env(self, case: TestCase) -> Dict[str, str]:
+        """Assemble the environment for one test run."""
+        env = os.environ.copy()
+        # BDFHOME: installed package directory
+        env["BDFHOME"] = str(self.bdf_home)
+        # BDF_TMPDIR: per-test scratch directory under the global tmp_dir
+        case_tmp_dir = self.tmp_dir / case.name
+        case_tmp_dir.mkdir(parents=True, exist_ok=True)
+        env["BDF_TMPDIR"] = str(case_tmp_dir)
+        # BDF built with HDF5 uses the .bdfh5 checkpoint as the primary chkfil
+        # when this flag is set. Inject it for HDF5-enabled builds; an explicit
+        # value in tests.env below still wins, so users can override it.
+        if self.hdf5.enabled:
+            env["BDF_H5_CHKFIL_PRIMARY"] = "1"
+        # OpenMP settings with defaults
+        env["OMP_NUM_THREADS"] = str(self.env_cfg.get("OMP_NUM_THREADS", 8))
+        env["OMP_STACKSIZE"] = str(self.env_cfg.get("OMP_STACKSIZE", "512M"))
+        # Any additional env keys from config.env
+        for key, value in self.env_cfg.items():
+            if key not in {"BDF_TMPDIR", "OMP_NUM_THREADS", "OMP_STACKSIZE"}:
+                env[str(key)] = str(value)
+        return env
 
     def discover_tests(self) -> List[TestCase]:
         """Find all tests matching the glob pattern"""
@@ -253,20 +277,7 @@ class TestRunner:
         start_time = time.monotonic()
 
         # Prepare environment variables
-        env = os.environ.copy()
-        # BDFHOME: installed package directory
-        env["BDFHOME"] = str(self.bdf_home)
-        # BDF_TMPDIR: per-test scratch directory under the global tmp_dir
-        case_tmp_dir = self.tmp_dir / case.name
-        case_tmp_dir.mkdir(parents=True, exist_ok=True)
-        env["BDF_TMPDIR"] = str(case_tmp_dir)
-        # OpenMP settings with defaults
-        env["OMP_NUM_THREADS"] = str(self.env_cfg.get("OMP_NUM_THREADS", 8))
-        env["OMP_STACKSIZE"] = str(self.env_cfg.get("OMP_STACKSIZE", "512M"))
-        # Any additional env keys from config.env
-        for key, value in self.env_cfg.items():
-            if key not in {"BDF_TMPDIR", "OMP_NUM_THREADS", "OMP_STACKSIZE"}:
-                env[str(key)] = str(value)
+        env = self._build_test_env(case)
 
         # Run BDF so that its stdout/stderr are written directly to the per‑test
         # log file in the working directory.

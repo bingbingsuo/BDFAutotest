@@ -21,6 +21,7 @@ try:
     from .models import BuildResult
     from .error_event_parser import ErrorEventParser
     from .utils import resolve_source_dir
+    from .build_manager import resolve_hdf5
 except ImportError:  # pragma: no cover
     from config_loader import ConfigLoader  # type: ignore
     from logger import setup_logger  # type: ignore
@@ -34,6 +35,7 @@ except ImportError:  # pragma: no cover
     from models import BuildResult  # type: ignore
     from error_event_parser import ErrorEventParser  # type: ignore
     from utils import resolve_source_dir  # type: ignore
+    from build_manager import resolve_hdf5  # type: ignore
 
 
 def run_workflow(
@@ -423,7 +425,12 @@ def run_input_command(
     env["BDFHOME"] = str(bdf_home)
     env["BDF_WORKDIR"] = str(work_dir)
     env["BDF_TMPDIR"] = str(tmp_dir)
-    
+
+    # BDF built with HDF5 uses the .bdfh5 checkpoint as the primary chkfil
+    # when this flag is set; an explicit value in tests.env below still wins.
+    if resolve_hdf5(config).enabled:
+        env["BDF_H5_CHKFIL_PRIMARY"] = "1"
+
     # OpenMP settings
     env["OMP_NUM_THREADS"] = str(env_cfg.get("OMP_NUM_THREADS", os.cpu_count() or 1))
     env["OMP_STACKSIZE"] = str(env_cfg.get("OMP_STACKSIZE", "512M"))

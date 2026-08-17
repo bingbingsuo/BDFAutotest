@@ -109,6 +109,14 @@ build:
 
   **Python runtime dependency (h5py).** BDF built with HDF5 invokes Python helper scripts (`bdfhdf5.py`, `bdfh5_manifest.py`) during checkpoint/restart, and those `import h5py` at runtime. The `h5py` package is declared in `requirements.txt` — install it in the Python environment used to run tests. When HDF5 is enabled, `TestRunner` verifies at startup that `h5py` is importable and logs a clear error (with install hint) before any test runs. Failure logs containing `ModuleNotFoundError: No module named 'h5py'` are classified as `environment` error events and the LLM analysis includes the same install hint.
 
+  **Runtime environment variable (`BDF_H5_CHKFIL_PRIMARY`).** When HDF5 is enabled, BDF should use the `.bdfh5` checkpoint file as the primary chkfil. The framework injects `BDF_H5_CHKFIL_PRIMARY=1` into the environment of every regression test run (and `run-input` calculations) automatically. An explicit value in `tests.env` overrides the automatic one, so you can force a different behavior per-machine if needed:
+
+  ```yaml
+  tests:
+    env:
+      BDF_H5_CHKFIL_PRIMARY: "1"   # optional; this is the automatic default
+  ```
+
   **Example.** Enable HDF5 against a Homebrew install on macOS:
 
   ```yaml
