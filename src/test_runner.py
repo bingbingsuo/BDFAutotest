@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional
 
 from .models import TestCase, TestResult, CommandResult, ComparisonResult
 from .result_comparator import ResultComparator
-from .utils import resolve_source_path, wildcard_to_name, resolve_source_dir
+from .utils import resolve_source_path, wildcard_to_name, resolve_source_dir, raise_stack_limit
 
 # Lazy import solvent_parser to avoid hard dependency
 _has_solvent = None
@@ -98,6 +98,10 @@ class TestRunner:
         from .build_manager import resolve_hdf5
         self.hdf5 = resolve_hdf5(self.config)
         self._warn_if_h5py_missing()
+
+        # BDF tests need a large stack (`ulimit -s unlimited` on Linux).
+        # Subprocesses inherit this, so raising once here covers every test.
+        raise_stack_limit(self.logger)
 
     def _warn_if_h5py_missing(self) -> None:
         if not self.hdf5.enabled:

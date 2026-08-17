@@ -9,6 +9,55 @@ from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 
 
+def raise_stack_limit(logger: Optional[logging.Logger] = None) -> bool:
+    """
+    Raise RLIMIT_STACK to its hard limit so child processes run with an
+    unlimited (or maximal) stack, equivalent to `ulimit -s unlimited`.
+
+    BDF regression tests need a large stack on Linux; subprocesses inherit
+    the parent's limits, so raising once before spawning tests covers them
+    all. Best effort: on platforms that refuse post-start raises (macOS
+    rejects any stack raise) the call is skipped with a debug log and the
+    run continues with the inherited limit.
+
+    Returns True if the limit is now at its maximum (or already was).
+    """
+    logger = logger or logging.getLogger("bdf_autotest.utils")
+    try:
+        import resource
+    except ImportError:  # non-POSIX platform
+        logger.debug("resource module unavailable; skipping stack limit raise")
+        return False
+
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_STACK)
+    except (ValueError, OSError) as exc:
+        logger.debug("Could not read RLIMIT_STACK: %s", exc)
+        return False
+
+    if soft == hard or soft == resource.RLIM_INFINITY:
+        logger.debug("Stack limit already at maximum (soft=%s)", soft)
+        return True
+
+    try:
+        resource.setrlimit(resource.RLIMIT_STACK, (hard, hard))
+        new_soft, _ = resource.getrlimit(resource.RLIMIT_STACK)
+        logger.info(
+            "Raised stack limit from %s to %s (hard cap) for test subprocesses",
+            soft, new_soft,
+        )
+        return True
+    except (ValueError, OSError) as exc:
+        # E.g. macOS: "Operation not permitted" — cannot raise after start.
+        logger.warning(
+            "Could not raise stack limit (soft=%s, hard=%s): %s. "
+            "Tests will inherit the current limit; on Linux you can also "
+            "run 'ulimit -s unlimited' before starting the framework.",
+            soft, hard, exc,
+        )
+        return False
+
+
 def resolve_source_dir(config: Dict[str, Any]) -> Path:
     """
     Return the resolved package source directory from config.

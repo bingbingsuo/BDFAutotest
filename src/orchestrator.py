@@ -20,7 +20,7 @@ try:
     from .report_generator import ReportGenerator
     from .models import BuildResult
     from .error_event_parser import ErrorEventParser
-    from .utils import resolve_source_dir
+    from .utils import resolve_source_dir, raise_stack_limit
     from .build_manager import resolve_hdf5
 except ImportError:  # pragma: no cover
     from config_loader import ConfigLoader  # type: ignore
@@ -34,7 +34,7 @@ except ImportError:  # pragma: no cover
     from report_generator import ReportGenerator  # type: ignore
     from models import BuildResult  # type: ignore
     from error_event_parser import ErrorEventParser  # type: ignore
-    from utils import resolve_source_dir  # type: ignore
+    from utils import resolve_source_dir, raise_stack_limit  # type: ignore
     from build_manager import resolve_hdf5  # type: ignore
 
 
@@ -425,6 +425,10 @@ def run_input_command(
     env["BDFHOME"] = str(bdf_home)
     env["BDF_WORKDIR"] = str(work_dir)
     env["BDF_TMPDIR"] = str(tmp_dir)
+
+    # BDF needs a large stack (`ulimit -s unlimited` on Linux); the child
+    # process inherits our limits, so raise before spawning it.
+    raise_stack_limit()
 
     # BDF built with HDF5 uses the .bdfh5 checkpoint as the primary chkfil
     # when this flag is set; an explicit value in tests.env below still wins.

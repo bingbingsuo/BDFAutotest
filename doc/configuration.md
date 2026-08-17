@@ -281,6 +281,7 @@ tests:
   - `env.BDF_WORKDIR`:
     - Optional work directory for the `run-input` command.
     - If not set, `run-input` uses the input file’s directory by default.
+  - **Stack limit (`ulimit -s`)**: BDF tests on Linux need an unlimited stack. Before tests run (and before `run-input` calculations), the framework raises `RLIMIT_STACK` to its hard limit — the equivalent of `ulimit -s unlimited` — so every spawned test process inherits it. This is best effort: on platforms that refuse post-start raises (macOS), a warning is logged and the run continues with the inherited limit; if needed there, run `ulimit -s unlimited` in the shell before starting the framework.
 
 - **Result extraction**
   - `log_file_pattern`: Pattern for test logs.
