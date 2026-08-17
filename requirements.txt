@@ -2,6 +2,9 @@
 pyyaml>=6.0
 gitpython>=3.1.0
 
+# HDF5 runtime for BDF checkpoint helpers (bdfhdf5.py / bdfh5_manifest.py)
+h5py>=3.0.0
+
 # Report generation
 jinja2>=2.10.3
 

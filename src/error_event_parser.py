@@ -42,7 +42,24 @@ class ErrorEventParser:
     MODULE_END_PATTERN = re.compile(r'\s*End\s+running\s+module\s+(\w+)', re.IGNORECASE)
     
     FILE_LINE_PATTERN = re.compile(r'([^:]+):(\d+)(?::(\d+))?')
-    
+
+    # BDF built with HDF5 calls Python helpers (bdfhdf5.py, bdfh5_manifest.py)
+    # that import h5py at runtime; a missing h5py shows up in test logs as a
+    # Python ImportError/ModuleNotFoundError traceback.
+    H5PY_MISSING_PATTERN = re.compile(
+        r'No module named\s+[\'"]?h5py[\'"]?'
+        r'|(?:ModuleNotFoundError|ImportError)[^\n]*h5py'
+        r'|h5py[^\n]*(?:ModuleNotFoundError|ImportError)',
+        re.IGNORECASE,
+    )
+
+    # CMake configure-time failure when the HDF5 library itself cannot be
+    # located (e.g. "Could NOT find HDF5 (missing: HDF5_LIBRARIES)").
+    HDF5_CMAKE_MISSING_PATTERN = re.compile(
+        r'could not find hdf5|hdf5[^:\n]{0,40}(?:not found|missing)',
+        re.IGNORECASE,
+    )
+
     # Knowledge library: Known false positive patterns (non-errors that contain "error" keyword)
     # These patterns should not be treated as errors when found in logs
     FALSE_POSITIVE_PATTERNS = [
@@ -268,7 +285,15 @@ class ErrorEventParser:
     def _categorize_error(self, error_text: str, error_type: ErrorType) -> ErrorCategory:
         """Categorize error into specific category"""
         text_lower = error_text.lower()
-        
+
+        # Environment issues first: a missing Python h5py (runtime) or a
+        # missing HDF5 library (CMake configure) is the root cause; without
+        # these checks such failures would fall into generic categories.
+        if self.H5PY_MISSING_PATTERN.search(error_text):
+            return ErrorCategory.ENVIRONMENT
+        if self.HDF5_CMAKE_MISSING_PATTERN.search(error_text):
+            return ErrorCategory.ENVIRONMENT
+
         if error_type == ErrorType.LINKER:
             if "undefined" in text_lower:
                 return ErrorCategory.UNDEFINED_SYMBOL

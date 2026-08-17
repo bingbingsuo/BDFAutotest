@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional, List
 import requests
 
 from .models import BuildResult, TestResult, LLMAnalysis
+from .error_event_parser import ErrorEventParser
 
 # Knowledge library: Known false positive patterns (non-errors that contain "error" keyword)
 # These patterns should not be treated as errors when found in logs
@@ -22,6 +23,17 @@ FALSE_POSITIVE_PATTERNS = [
     re.compile(r"(?i)IsOrthogonalizeDiisErrorMatrix\s*=", re.IGNORECASE),
     # Add more false positive patterns here as needed
 ]
+
+# Domain knowledge shown when a failure log indicates a missing Python h5py
+# package: BDF built with HDF5 runs Python helpers (bdfhdf5.py etc.) during
+# checkpoint/restart, and those require the h5py runtime.
+H5PY_MISSING_NOTE = (
+    "BDF was built with HDF5 support; its Python helper scripts "
+    "(bdfhdf5.py, bdfh5_manifest.py) import h5py at runtime. "
+    "This failure is caused by the missing 'h5py' Python package, not by BDF "
+    "code. Fix: pip install h5py (declared in requirements.txt), or rebuild "
+    "BDF without HDF5 (build.hdf5.enabled: false)."
+)
 
 
 class LLMAnalyzer:
@@ -169,7 +181,16 @@ class LLMAnalyzer:
                     "this is a known issue that needs to be checked and fixed in the NRCC module code.\n"
                     "- NRCC module may have bugs that cause calculation failures.\n\n"
                 )
-        
+
+        # Environment issue: missing Python h5py package for HDF5-enabled builds
+        if ErrorEventParser.H5PY_MISSING_PATTERN.search(error_text):
+            if domain_knowledge:
+                domain_knowledge += "\n"
+            domain_knowledge += (
+                "IMPORTANT DOMAIN KNOWLEDGE (h5py runtime):\n"
+                f"- {H5PY_MISSING_NOTE}\n\n"
+            )
+
         return (
             "You are an expert in quantum‑chemistry program debugging, especially for the BDF package.\n"
             "A regression test failed when comparing output to reference CHECKDATA.\n"
@@ -615,7 +636,12 @@ class LLMAnalyzer:
             for line in last_lines:
                 lines.append(f"- {line}")
         lines.append("")
-        
+
+        # Environment note: missing Python h5py package (HDF5-enabled builds)
+        if ErrorEventParser.H5PY_MISSING_PATTERN.search(error_text):
+            lines.append("**Note:** " + H5PY_MISSING_NOTE)
+            lines.append("")
+
         # Add comparison differences if available
         if test_result.comparison and test_result.comparison.differences:
             lines.append("**Comparison Differences:**")

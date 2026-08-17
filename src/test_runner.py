@@ -91,6 +91,26 @@ class TestRunner:
             self.env_cfg["OMP_NUM_THREADS"] = per_test_threads
         self.logger = logger or logging.getLogger("bdf_autotest.tests")
 
+        # When BDF is built with HDF5, its Python helpers (bdfhdf5.py,
+        # bdfh5_manifest.py) import h5py at runtime. Surface a missing h5py
+        # before tests start instead of letting every checkpoint-touching test
+        # fail with a cryptic ModuleNotFoundError.
+        self._warn_if_h5py_missing()
+
+    def _warn_if_h5py_missing(self) -> None:
+        from .build_manager import resolve_hdf5
+        if not resolve_hdf5(self.config).enabled:
+            return
+        try:
+            import h5py  # noqa: F401
+        except ImportError:
+            self.logger.error(
+                "BDF is built with HDF5 support, but the Python 'h5py' package "
+                "is not importable in this environment. Tests that touch HDF5 "
+                "checkpoints will fail with ModuleNotFoundError. "
+                "Install it with: pip install h5py"
+            )
+
     def discover_tests(self) -> List[TestCase]:
         """Find all tests matching the glob pattern"""
         test_path = resolve_source_path(self.source_dir, self.test_dir)

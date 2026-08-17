@@ -107,6 +107,8 @@ build:
 
   The check uses only filesystem presence — it does not run `h5cc` or `pkg-config`. CMake re-validates the library during configure, so a passing check here does not guarantee a successful build; it only catches the common case of a wrong or unset HDF5 home before the expensive build starts.
 
+  **Python runtime dependency (h5py).** BDF built with HDF5 invokes Python helper scripts (`bdfhdf5.py`, `bdfh5_manifest.py`) during checkpoint/restart, and those `import h5py` at runtime. The `h5py` package is declared in `requirements.txt` — install it in the Python environment used to run tests. When HDF5 is enabled, `TestRunner` verifies at startup that `h5py` is importable and logs a clear error (with install hint) before any test runs. Failure logs containing `ModuleNotFoundError: No module named 'h5py'` are classified as `environment` error events and the LLM analysis includes the same install hint.
+
   **Example.** Enable HDF5 against a Homebrew install on macOS:
 
   ```yaml
