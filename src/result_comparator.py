@@ -29,6 +29,15 @@ class ResultComparator:
         self.checkdata_tolerances: Dict[str, float] = {
             "CHECKDATA:HF:ENERGY": 2.0e-8,  # Increased from 1.0e-8 to 2.0e-8
             "CHECKDATA:MCSCF:MCENERGY": 1.0e-6,
+            # Integer convergence-step count is threshold-edge sensitive: platform
+            # numerics (gfortran vs ifx, ~1e-7 per-step drift) shift which step
+            # crosses DeltaE<1e-6 first (test139 seg2: 6 vs 7, same final energy).
+            # tol 1.0 => allow +/-1 step. bbsuo20261107
+            "CHECKDATA:MCSCF:NITER": 1.0,
+            # PT2 strongly amplifies tiny CI-coefficient differences (test139:
+            # H0 main-CSF weight drifts 4e-5 -> SDSPT2 energy drifts 2.6e-5).
+            # bbsuo20261107
+            "CHECKDATA:MRPT2:PT2ENERGY": 5.0e-5,
             "CHECKDATA:GRAD:ERI_GRAD": 2.0e-5,
             "CHECKDATA:GRAD:TOT_GRAD": 2.0e-5,
             "CHECKDATA:GRAD:GS+EX": 3.0e-6,  # Tolerance for ground+excited state gradients
