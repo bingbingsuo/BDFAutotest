@@ -283,6 +283,20 @@ class TestRunner:
         # Prepare environment variables
         env = self._build_test_env(case)
 
+        # Remove stale outputs from previous runs of this test (chkfil/bdfh5/
+        # optgeom restart files etc.). BDF picks these up across tasks (the
+        # $compass `check` keyword, BDFOPT restart), so a leftover from an
+        # earlier run silently continues an old optimization instead of
+        # starting fresh and corrupts reproducibility (observed on test136/
+        # test156/test161, 2026-11-07).
+        for stale in self.check_dir.glob(f"{case.name}.*"):
+            if stale.suffix in {".inp", ".check"}:
+                continue
+            try:
+                stale.unlink()
+            except OSError:
+                pass
+
         # Run BDF so that its stdout/stderr are written directly to the per‑test
         # log file in the working directory.
         #
