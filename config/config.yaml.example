@@ -157,7 +157,7 @@ tests:
     #   max(1, num_cores / max_parallel)
     # You can uncomment the next line to override the automatic value.
     # OMP_NUM_THREADS: 4
-    OMP_STACKSIZE: "512M"   # Default OpenMP stack size
+    OMP_STACKSIZE: "4G"   # Default OpenMP stack size
     BDF_TMPDIR: "/tmp/$RANDOM"  # Scratch directory template (use $RANDOM for unique dirs)
     # BDF_WORKDIR: "/path/to/workdir"  # Optional: working directory for run-input command
                                       # If not set, uses input file's directory
