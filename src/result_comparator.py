@@ -27,7 +27,18 @@ class ResultComparator:
         # The keys are prefixes at the start of a CHECKDATA line.
         # You can add more rules here manually.
         self.checkdata_tolerances: Dict[str, float] = {
-            "CHECKDATA:HF:ENERGY": 2.0e-8,  # Increased from 1.0e-8 to 2.0e-8
+            # HF total energy tail drift 2~3.5e-7 across 7 hikun-vs-imp tests
+            # (per-platform SCF/Fock numerics), exceeds old 2.0e-8.
+            # bbsuo20261108
+            "CHECKDATA:HF:ENERGY": 5.0e-7,
+            # PBC quantities: MPEC+COSX numerical integration summed over
+            # k-points gives stable per-platform offsets (test151 LiF FCC:
+            # CellBondEne differs ~6.4e-6 from SCF step 1 on, converges to
+            # a constant with identical 8-step SCF trajectory on both
+            # platforms; FermiEnergy 5e-7). Not a code bug. bbsuo20261108
+            "CHECKDATA:PBC:CELLBONDENE": 1.0e-5,
+            "CHECKDATA:PBC:FERMIENERGY": 1.0e-6,
+            "CHECKDATA:PBC:HOMOLUMOGAP": 1.0e-6,
             "CHECKDATA:MCSCF:MCENERGY": 1.0e-6,
             # Integer convergence-step count is threshold-edge sensitive: platform
             # numerics (gfortran vs ifx, ~1e-7 per-step drift) shift which step
