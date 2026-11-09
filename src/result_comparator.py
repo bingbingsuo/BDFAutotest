@@ -57,9 +57,11 @@ class ResultComparator:
             "CHECKDATA:TDDFT:EXCITENE": 2.0e-4,
             "CHECKDATA:MRCI:ECI": 5.0e-8,
             "CHECKDATA:MRCI:ECI_DAV": 5.0e-8,
-            "CHECKDATA:MP2:Eab": 1.0e-7,
-            "CHECKDATA:MP2:Emp2": 1.0e-7,
-            "CHECKDATA:MP2:Ecorr": 1.0e-7,
+                        # 2026-11-09: 1e-7 -> 1e-6, per-platform drift observed up to
+            # 4.0e-7 on test129 (same class as Eaa/Ebb/E(Double-Hybrid)).
+"CHECKDATA:MP2:Eab": 1.0e-6,
+            "CHECKDATA:MP2:Emp2": 1.0e-6,
+            "CHECKDATA:MP2:Ecorr": 1.0e-6,
             "CHECKDATA:BDFOPT:OPTGEOM": 1.1e-4,  # Tolerance for optimized geometry coordinates (all values compared)
             "CHECKDATA:BDFOPT:HESSIAN": 1.1e-4,  # Tolerance for Hessian matrix elements (all values compared)
             "CHECKDATA:BDFOPT:FREQ": 1.0,  # Tolerance for vibrational frequencies (all values compared)
@@ -67,6 +69,26 @@ class ResultComparator:
             "CHECKDATA:EOMEESO:ECCSD": 1.0e-7,
             "CHECKDATA:EOMIPSO:EXCITEDSTATE": 1.0e-7,
             "CHECKDATA:EOMEASO:EXCITEDSTATE": 1.0e-7,
+            # --- 2026-11-09: keys uncovered by hdf5-chkfil-primary daily runs ---
+            # Tolerances set from observed max per-platform delta in
+            # report_2026-11-09 (513b0391 vs 382a73f4 refs), >=~3-5x margin,
+            # aligned with sibling classes. Wolfbing 2026-11-09: last-digit
+            # drifts (test013/test055 class) are acceptable; cross-machine
+            # numeric differences expected.
+            "CHECKDATA:MP2:Eaa": 1.0e-6,             # obs 1.2e-7 (test013/129)
+            "CHECKDATA:MP2:Ebb": 1.0e-6,             # obs 3.4e-7 (test129)
+            "CHECKDATA:MP2:E(Double-Hybrid)": 1.0e-6, # obs 2.2e-7 (test129)
+            "CHECKDATA:NMR:NR_GIAO_NMSC": 5.0e-4,    # obs 1.0e-4 (test055)
+            "CHECKDATA:HESS:GS": 1.0e-2,             # obs 3.6e-3 (test138) [watch]
+            "CHECKDATA:BDFOPT:CONVERGE": 5.0e-4,     # obs 7.5e-5 (test136)
+            "CHECKDATA:NRCC:EOMEECCSDF": 5.0e-6,     # obs 1.0e-6 (test060)
+            "CHECKDATA:RT-LR:DELTA_DIP": 1.0e-7,     # obs 1.2e-8 (test133)
+            "CHECKDATA:SOBEDA:ELS": 5.0e-3,          # obs 1.0e-3 (test160)
+            "CHECKDATA:SOC:ENERGY": 1.0e-2,          # obs 4.8e-3 (test107/130) [watch]
+            "CHECKDATA:SOC:DIPMOM": 5.0e-3,          # obs 1.0e-3 (test107)
+            "CHECKDATA:SOC:FOSC": 2.0e-4,            # obs 5.0e-5 (test107)
+            "CHECKDATA:SQM:ENERGY": 1.0e-3,          # obs 1.8e-4 (test094)
+            "CHECKDATA:TDDFT:ECD": 2.0e-3,           # obs 6.0e-4 (test149)
         }
         # Special relative tolerance for all ELECOUP quantities:
         # |gen - ref| / |ref| <= elecoup_relative_tol  -> treated as matched.
@@ -144,6 +166,15 @@ class ResultComparator:
                         "CHECKDATA:BDFOPT:OPTGEOM",
                         "CHECKDATA:BDFOPT:HESSIAN",
                         "CHECKDATA:BDFOPT:FREQ",
+                        "CHECKDATA:NMR:NR_GIAO_NMSC",
+                        "CHECKDATA:HESS:GS",
+                        "CHECKDATA:SOC:ENERGY",
+                        "CHECKDATA:SOC:DIPMOM",
+                        "CHECKDATA:SOC:FOSC",
+                        "CHECKDATA:RT-LR:DELTA_DIP",
+                        "CHECKDATA:SOBEDA:ELS",
+                        "CHECKDATA:TDDFT:ECD",
+                        "CHECKDATA:BDFOPT:CONVERGE",
                     ]
                     if key in multi_value_keys:
                         g_floats, r_floats, ok = self._extract_all_floats(g_norm, r_norm)
@@ -233,7 +264,11 @@ class ResultComparator:
                 try:
                     return float(token)
                 except ValueError:
-                    continue
+                    # Fortran D-exponent (e.g. 0.16D-05)
+                    try:
+                        return float(token.replace("D", "E").replace("d", "e"))
+                    except ValueError:
+                        continue
             return None
 
         g_val = last_float(gen)
@@ -254,7 +289,11 @@ class ResultComparator:
                 try:
                     floats.append(float(token))
                 except ValueError:
-                    continue
+                    # Fortran D-exponent (e.g. 0.16D-05)
+                    try:
+                        floats.append(float(token.replace("D", "E").replace("d", "e")))
+                    except ValueError:
+                        continue
             return floats
 
         g_floats = extract_floats(gen)
