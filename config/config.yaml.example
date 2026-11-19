@@ -164,7 +164,7 @@ tests:
   
   # Pattern-based test discovery
   # Tests will be automatically discovered from test*.inp files
-  input_pattern: "test*.inp"  # Pattern for input files in test_dir
+  input_pattern: "test*.inp,mp2_gradient*.inp"  # Pattern for input files in test_dir
   reference_pattern: "test*.check"  # Pattern for reference files in reference_dir (e.g. tests/check/test002.check)
   check_pattern: "test*.check"  # Pattern for extracted check data files in build/check
   

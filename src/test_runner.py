@@ -143,7 +143,17 @@ class TestRunner:
         """Find all tests matching the glob pattern"""
         test_path = resolve_source_path(self.source_dir, self.test_dir)
         reference_path = resolve_source_path(self.source_dir, self.reference_dir)
-        input_files = sorted(test_path.glob(self.input_pattern))
+        # input_pattern may be a comma-separated list of glob patterns
+        # (e.g. "test*.inp,mp2_gradient*.inp"); results are merged and sorted.
+        patterns = [pt.strip() for pt in self.input_pattern.split(",") if pt.strip()]
+        seen = set()
+        input_files = []
+        for pt in patterns:
+            for f in test_path.glob(pt):
+                if f not in seen:
+                    seen.add(f)
+                    input_files.append(f)
+        input_files = sorted(input_files)
         cases = []
 
         # Optional numeric range filter for enabled tests (e.g. 1-20)
