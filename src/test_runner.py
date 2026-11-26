@@ -174,6 +174,11 @@ class TestRunner:
 
         for input_file in input_files:
             name = input_file.stem
+            if name.endswith(".res"):
+                # Restart continuation stage of a two-stage test; it is
+                # executed as part of its parent case (testXXX), never alone.
+                self.logger.debug("Skipping standalone restart stage %s", input_file.name)
+                continue
 
             # Apply enabled_range filter if configured
             if name.startswith("test") and (min_id is not None or max_id is not None):
@@ -201,6 +206,15 @@ class TestRunner:
                 # Non‑fatal; missing support files will show up as regular test failures
                 self.logger.debug("Failed to copy some support files for %s", name)
 
+            # Two-stage restart test: a sibling `<name>.res.inp` turns this
+            # case into a stop->continue chain (see TestCase.restart_input).
+            restart_input = None
+            res_file = input_file.parent / f"{name}.res.inp"
+            if res_file.exists():
+                shutil.copy2(res_file, self.check_dir / res_file.name)
+                restart_input = self.check_dir / res_file.name
+                self.logger.info("Test %s is a two-stage restart case (%s)", name, res_file.name)
+
             log_name = wildcard_to_name(self.log_pattern, name)
             log_file = self.check_dir / log_name
 
@@ -225,6 +239,7 @@ class TestRunner:
                     reference_file=reference_file,
                     command=command,
                     solvent_info=solvent_info,
+                    restart_input=restart_input,
                 )
             )
 
@@ -307,7 +322,24 @@ class TestRunner:
             except OSError:
                 pass
 
-        # Run BDF so that its stdout/stderr are written directly to the per‑test
+        # Two-stage (restart) cases run in a dedicated workdir subdirectory:
+        # the fixed-name restart snapshot (`.bdfgeoopt_restart.h5`) lives in
+        # BDF_WORKDIR, so sharing check_dir would let parallel native-optimizer
+        # tests overwrite each other's snapshot mid-run.
+        if case.restart_input is not None:
+            workdir = self.check_dir / f"{case.name}_ws"
+            if workdir.exists():
+                shutil.rmtree(workdir)
+            workdir.mkdir(parents=True)
+            env["BDF_WORKDIR"] = str(workdir)
+            # bdfdrv resolves the input name relative to cwd, so both stages
+            # need their inputs present inside the dedicated workdir.
+            shutil.copy2(case.input_file, workdir / case.input_file.name)
+            shutil.copy2(case.restart_input, workdir / case.restart_input.name)
+        else:
+            workdir = self.check_dir
+
+        # Run BDF so that its stdout/stderr are written directly to the per-test
         # log file in the working directory.
         #
         # NOTE:
@@ -319,18 +351,32 @@ class TestRunner:
         # - By streaming output directly into "testXXX.log" under the check
         #   directory, the file exists during the run and tools like
         #   "plotspec.py" can read it successfully.
+        def _run_stage(command, log_path, timeout):
+            with open(log_path, "w", encoding="utf-8") as log_f:
+                proc = subprocess.run(
+                    command,
+                    cwd=workdir,
+                    env=env,
+                    stdout=log_f,
+                    stderr=subprocess.STDOUT,
+                    timeout=timeout,
+                    check=False,
+                    text=True,
+                )
+            return proc.returncode
+
         case.log_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(case.log_file, "w", encoding="utf-8") as log_f:
-            process = subprocess.run(
-                case.command,
-                cwd=self.check_dir,
-                env=env,
-                stdout=log_f,
-                stderr=subprocess.STDOUT,
-                timeout=self.timeout,
-                check=False,
-                text=True,
-            )
+        exit_code = _run_stage(case.command, case.log_file, self.timeout)
+
+        # Restart continuation stage: the stop stage is EXPECTED to exit
+        # non-zero (e.g. OPT_NOT_CONVERGED, exit 100); the chain verdict is
+        # decided by the restart stage only.
+        if case.restart_input is not None:
+            res_command = self._build_command(case.restart_input.name)
+            res_log = self.check_dir / f"{case.name}.res{case.log_file.suffix}"
+            exit_code = _run_stage(res_command, res_log, self.timeout)
+            case.log_file = res_log       # CHECKDATA is extracted from the restart stage
+            case.command = res_command
 
         duration = time.monotonic() - start_time
 
@@ -339,10 +385,10 @@ class TestRunner:
         # directly. To keep memory usage reasonable for long runs, we do not
         # duplicate the full log contents into stdout/stderr here.
         test_result = TestResult(
-            success=process.returncode == 0,
+            success=exit_code == 0,
             command=case.command,
             cwd=str(self.source_dir),
-            exit_code=process.returncode,
+            exit_code=exit_code,
             stdout="",
             stderr="",
             duration=duration,

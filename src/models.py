@@ -38,6 +38,12 @@ class TestCase:
     reference_file: Path
     command: List[str]
     solvent_info: Optional[Union[Any, Dict[str, Any]]] = None  # lazy-populated by test_runner
+    # Two-stage (restart) tests: when a sibling `<name>.res.inp` exists, the
+    # runner first executes the main input (expected to stop early, e.g.
+    # MAXCYCLE exhaustion) and then continues from it with the restart input
+    # in the same working directory.  CHECKDATA is extracted from the restart
+    # stage log.  Both stages run in a dedicated workdir subdirectory.
+    restart_input: Optional[Path] = None
 
 
 @dataclass
