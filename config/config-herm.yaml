@@ -1,0 +1,194 @@
+# Example configuration file for BDF Auto Test Framework
+# Copy this to config.yaml and customize for your environment
+
+git:
+  # Example: "ssh://user@host:port/path/to/bdf-pkg"
+  remote_url: "ssh://bbs@182.92.69.169:7022/opt/gitroot/bdf-pkg"
+  branch: "bdfherm-test"
+  local_path: "/home/bsuo/work/bdf/bdfherm-test"
+
+build:
+  # Only two path-related options are needed:
+  # - git.local_path : root directory where git pulls the code
+  # - build_dir      : build directory inside that source_dir (relative path)
+  build_dir: "build"
+  build_command: "./setup"
+  
+  # Compiler combinations (choose one)
+  # Option 1: GNU compilers
+  compiler_set: "intel"  # Options: "gnu", "intel", "llvm"
+  compilers:
+    gnu:
+      fortran: "gfortran"
+      c: "gcc"
+      cpp: "g++"
+    intel:
+      fortran: "ifx"
+      c: "icx"
+      cpp: "icpx"
+    llvm:
+      fortran: "Flang"
+      c: "clang"
+      cpp: "clang++"
+  
+  # Math library configuration
+  # Option 1: Use MKL library
+  use_mkl: false  # Set to false for custom math library
+  mkl_option: "TBB"  # Value for --mkl option (ignored if use_mkl: false)
+  
+  # Option 2: Custom math library (configure below)
+  math_library:
+    mathinclude_flags: "-I/home/bsuo/libs/aocl-blis/std/include"  # Value for --mathinclude-flags (fill in as needed)
+    mathlib_flags: "/home/bsuo/libs/aocl-blis/aocl.rsp"       # Value for --mathlib-flags (fill in as needed)
+    blasdir: "/home/bsuo/libs/aocl-blis/lib"             # Value for --blasdir (fill in as needed)
+    lapackdir: "/home/bsuo/libs/aocl-blis/lib"           # Value for --lapackdir (fill in as needed)
+
+  # HDF5 checkpoint/restart support (optional, default off).
+  # When enabled, the framework passes --hdf5 --hdf5root=<home> to setup.
+  # Pre-build check looks for <home>/include/hdf5.h and libhdf5.* under
+  # <home>/lib (or <home>/lib64). On failure it either downgrades (builds
+  # without --hdf5) or, with allow_downgrade: false, lets setup fail.
+  hdf5:
+    enabled: true                # Set to true to enable HDF5 support
+    hdf5home: "/usr"              # HDF5 install root; null -> read $HDF5HOME env var.
+                                  # Supports $HDF5HOME / ${HDF5HOME} placeholders.
+                                  # Common values: "/usr", "/opt/homebrew/opt/hdf5", "/usr/local/hdf5"
+    allow_downgrade: true         # true: build without HDF5 when the check fails.
+                                  # false: surface the failure (setup will likely error out).
+
+  # Build mode
+  build_mode: "release"  # Options: "release", "debug"
+  
+  # Preserve build directory (if true, don't remove existing build dir before setup)
+  # Useful for development: skip git/setup, just run make in build directory
+  preserve_build: false  # Set to true to keep build directory between runs
+  
+  # Python interpreter configuration (auto-detects python3 if not set)
+  # python_interpreter: "python3"
+  
+  # Always used options
+  always_use:
+    - "--int64"
+    - "--omp"
+  
+  # Additional build arguments (optional)
+  additional_args: []
+
+compile:
+  # working_dir is derived automatically as: build.source_dir/build.build_dir
+  command: "make"  # Base compile command
+  jobs: "auto"     # Number of parallel jobs for -jN (set to a positive integer, or use null / "auto" to detect from CPU count)
+  target: "install"  # Target to build after setup
+  extra_args: []      # Additional make arguments if needed
+  log_file: "make.log"  # Capture stdout/stderr for analysis
+  environment: {}
+
+llm:
+  # Overall behavior:
+  # - local : only use local LLM
+  # - remote: only use remote LLM (e.g. OpenAI)
+  # - auto  : try local first, fall back to remote if local fails
+  mode: "auto"
+  # Analysis mode:
+  # - simple: Extract basic info without LLM call
+  # - detailed: Use LLM for comprehensive analysis
+  analysis_mode: "simple"
+  max_tokens: 2000
+  temperature: 0.3  # Lower temperature for more deterministic analysis
+
+  local:
+    enabled: true
+    endpoint: "http://localhost:11434"  # Local LLM endpoint (e.g. Ollama)
+    model: "my-local-llm"                  # model name
+    timeout: 300  # Timeout in seconds for local LLM requests (default: 60) 
+
+  remote:
+    enabled: true
+    # Supported providers (all use OpenAI‑compatible chat completion APIs):
+    # - "openai"     → https://api.openai.com/v1/chat/completions
+    # - "openrouter" → https://openrouter.ai/api/v1/chat/completions
+    # - "deepseek"   → https://api.deepseek.com/chat/completions
+    # - "groq"       → https://api.groq.com/openai/v1/chat/completions
+    # - "minimax"    → https://api.minimaxi.com/anthropic/v1/messages (Anthropic-compatible)
+    provider: "minimax"
+    model: "MiniMax-M2.7"
+    api_key_env: "MINIMAX_CN_API_KEY"
+
+tests:
+  # Test directories are relative to source_dir (inside the repository)
+  test_dir: "tests/input"  # Test input directory inside source_dir
+  reference_dir: "tests/check"  # Reference data directory inside source_dir
+  tolerance: 1e-6  # Base numerical comparison tolerance (not used for CHECKDATA rules)
+  timeout: 3600     # Test timeout in seconds
+  # Limit which tests are executed by numeric ID (testNNN)
+  enabled_range:
+    min: 1   # Run from test001 ...
+    max: 164   # ... to test164 (163: dlfind restart, 164: native restart)
+  # Tolerance profiles:
+  # - strict: use base CHECKDATA tolerances
+  # - loose: multiply all CHECKDATA tolerances by the given scale factor
+  tolerance_mode: "strict"  # Options: "strict", "loose"
+  tolerance_scale:
+    strict: 1.0
+    loose: 5.0
+  # Optional named test profiles (for convenience)
+  profiles:
+    smoke:
+      min: 1
+      max: 5
+    core:
+      min: 1
+      max: 20
+    full:
+      min: 1
+      max: 164
+
+  # Active test profile (overrides enabled_range). Use null to honor enabled_range.
+  profile: null
+  # Maximum number of tests to run in parallel.
+  # Combined with OMP_NUM_THREADS this controls total core usage.
+  # For example: max_parallel=2 and OMP_NUM_THREADS=4 → up to ~8 threads.
+  max_parallel: 2
+  env:
+    # If OMP_NUM_THREADS is not set here, it will be chosen automatically as:
+    #   max(1, num_cores / max_parallel)
+    # You can uncomment the next line to override the automatic value.
+    OMP_NUM_THREADS: 16
+    OMP_STACKSIZE: "4G"   # Default OpenMP stack size
+    BDF_TMPDIR: "/tmp/$RANDOM"  # Scratch directory template (use $RANDOM for unique dirs)
+    # BDF_WORKDIR: "/path/to/workdir"  # Optional: working directory for run-input command
+                                      # If not set, uses input file's directory
+  
+  # Pattern-based test discovery
+  # Tests will be automatically discovered from test*.inp files
+  input_pattern: "test*.inp,mp2_gradient*.inp"  # Comma-separated glob patterns for input files in test_dir
+  reference_pattern: "test*.check"  # Pattern for reference files in reference_dir (e.g. tests/check/test002.check)
+  check_pattern: "test*.check"  # Pattern for extracted check data files in build/check
+  
+  # Test execution configuration
+  # Command to run the program (executed from source_dir)
+  # The command will be called with input file as argument
+  test_command: "{BDFHOME}/sbin/bdfdrv.py"  # Executable path (template supports {BDFHOME})
+  test_args_template: "-r {input_file}"  # Template for test arguments (no redirection; handled by runner)
+  
+  # Result extraction from log files
+  # After running a test, extract results using: grep CHECKDATA test*.log > test*.check
+  log_file_pattern: "test*.log"  # Pattern for log files generated in build/check
+  result_extraction:
+    method: "grep"  # Method to extract results
+    pattern: "CHECKDATA"  # Pattern to search for in log files
+    # The extracted build/check/test*.check file will be compared with the reference tests/check/test*.check
+
+reporting:
+  output_dir: "./reports-herm"
+  format: ["html", "json"]
+  include_llm_analysis: true
+  timestamp_format: "%Y-%m-%d_%H-%M-%S"
+  # Structured error events output for AI Agent integration
+  structured_events_dir: "./reports/error_events"  # Directory for JSON error events
+  save_error_events: true  # Save error events as JSON files
+
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_dir: "./logs"
+  log_file: "autotest_{timestamp}.log"
