@@ -123,7 +123,7 @@ tests:
   # Limit which tests are executed by numeric ID (testNNN)
   enabled_range:
     min: 1   # Run from test001 ...
-    max: 164   # ... to test164 (163: dlfind restart, 164: native restart)
+    max: 166   # ... to test166 (163/164: restart, 166: NEB CI-NEB)
   # Tolerance profiles:
   # - strict: use base CHECKDATA tolerances
   # - loose: multiply all CHECKDATA tolerances by the given scale factor
@@ -141,7 +141,7 @@ tests:
       max: 20
     full:
       min: 1
-      max: 164
+      max: 166
 
   # Active test profile (overrides enabled_range). Use null to honor enabled_range.
   profile: null
